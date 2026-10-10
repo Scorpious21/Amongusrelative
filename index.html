@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Among Us: Relative Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#090a0f',
+                        cardbg: '#131622',
+                        accent: '#6366f1',
+                        danger: '#ef4444',
+                        success: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; transition: background-color 0.2s, color 0.2s; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-darkbg text-slate-800 dark:text-slate-100 min-h-screen flex flex-col justify-between p-4 sm:p-6 select-none">
+
+    <header class="max-w-xl mx-auto w-full flex justify-between items-center py-3 px-4 bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+        <div class="flex items-center space-x-2.5">
+            <div class="w-2.5 h-2.5 rounded-full bg-success animate-pulse"></div>
+            <h1 class="font-bold text-xs tracking-wide">AMONG US <span class="text-indigo-500 font-normal">RELATIVE EDITION</span></h1>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span id="header-status" class="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg font-mono text-slate-500 dark:text-slate-400">Offline</span>
+            <button onclick="app.toggleTheme()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:scale-105 transition text-xs"></button>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto w-full flex-grow flex flex-col justify-center my-4">
+
+        <div id="view-permissions" class="space-y-5 text-center bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-6 sm:p-8 rounded-3xl shadow-sm">
+            <div class="space-y-2">
+                <h2 class="text-xl font-bold tracking-tight">Vessel System Permissions</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">Authorize GPS positioning, web notifications, and local Bluetooth streaming for seamless P2P connectivity.</p>
+            </div>
+            <div class="space-y-2.5 max-w-sm mx-auto w-full text-left font-mono text-xs">
+                <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <span>GPS Sector Radar</span>
+                    <span id="perm-gps" class="text-amber-500 font-bold">Pending</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <span>Push Notifications</span>
+                    <span id="perm-notif" class="text-amber-500 font-bold">Pending</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <span>Bluetooth / Stream Link</span>
+                    <span id="perm-bt" class="text-amber-500 font-bold">Pending</span>
+                </div>
+            </div>
+            <div class="max-w-sm mx-auto w-full">
+                <button onclick="app.requestPermissions()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition shadow-md">GRANT & CONTINUE</button>
+            </div>
+        </div>
+
+        <div id="view-intro" class="hidden space-y-5 text-center bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-6 sm:p-8 rounded-3xl shadow-sm">
+            <div class="space-y-2">
+                <h2 class="text-xl font-bold tracking-tight">Enter Vessel</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">Minimal P2P social deduction. Connect via 6-character room codes or GPS Sector Radar.</p>
+            </div>
+            <div class="space-y-3 max-w-sm mx-auto w-full">
+                <input type="text" id="input-name" placeholder="Your Codename..." maxlength="10" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-center text-sm font-bold focus:outline-none focus:border-indigo-500 transition">
+                <button onclick="app.submitName()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition shadow-md">START VESSEL</button>
+            </div>
+        </div>
+
+        <div id="view-lobby" class="hidden space-y-4">
+            <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-5 rounded-3xl space-y-4 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="font-bold text-sm">Command Deck</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Welcome, <span id="display-name" class="text-indigo-500 font-bold"></span></p>
+                    </div>
+                    <button onclick="app.createRoom()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition">Host Room</button>
+                </div>
+            </div>
+
+            <!-- GPS Sector Radar -->
+            <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-5 rounded-3xl space-y-3 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-xs">GPS Sector Radar</h3>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Live active lobbies broadcasting via local GPS beacon</p>
+                    </div>
+                    <button onclick="app.scanGPS()" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg transition">Scan Radar</button>
+                </div>
+                <div id="gps-list" class="space-y-2 max-h-36 overflow-y-auto no-scrollbar pt-1">
+                    <div class="text-center py-4 text-xs text-slate-400 italic">No GPS signals detected. Click scan.</div>
+                </div>
+            </div>
+
+            <!-- Manual Join & Saved Friends (3-char pins) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex space-x-2 items-center">
+                    <input type="text" id="input-room-code" placeholder="6-char code..." maxlength="6" class="flex-grow px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono uppercase focus:outline-none">
+                    <button onclick="app.joinRoom()" class="px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold rounded-xl">Join</button>
+                </div>
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-slate-400">Saved Friends (3-Pin)</span>
+                    <div id="friends-container" class="flex flex-wrap gap-1">
+                        <span class="text-[10px] text-slate-400 italic">None</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-room" class="hidden space-y-4">
+            <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-5 rounded-3xl space-y-3 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-[10px] uppercase font-bold text-slate-400">Room Code (6-Char):</span>
+                        <div class="flex items-center space-x-2 mt-0.5">
+                            <span id="room-code-badge" class="text-lg font-mono font-bold text-indigo-500 tracking-wider">------</span>
+                            <button onclick="app.copyCode()" class="text-[10px] px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md">Copy</button>
+                        </div>
+                    </div>
+                    <button onclick="app.saveFriendPin()" class="text-[11px] px-3 py-1.5 bg-indigo-500/10 text-indigo-500 font-semibold rounded-xl border border-indigo-500/20">Save 3-Pin</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col h-48">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-2">Crew Roster (<span id="roster-count">0</span>)</h3>
+                    <div id="roster-list" class="flex-grow overflow-y-auto no-scrollbar space-y-1.5"></div>
+                </div>
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col h-48 justify-between">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-1">Lobby Chat</h3>
+                    <div id="room-chat-log" class="flex-grow overflow-y-auto no-scrollbar space-y-1 text-xs font-mono text-slate-600 dark:text-slate-300 mb-2"></div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="room-chat-input" placeholder="Message..." onkeydown="if(event.key==='Enter')app.sendRoomChat()" class="flex-grow px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none">
+                        <button onclick="app.sendRoomChat()" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="host-start-container" class="hidden">
+                <button onclick="app.startGame()" class="w-full py-3.5 bg-success hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl transition shadow-md">LAUNCH MISSION</button>
+            </div>
+            <div id="guest-waiting-text" class="text-center text-xs text-slate-400 py-2 animate-pulse">Waiting for host to launch mission...</div>
+        </div>
+
+        <div id="view-role" class="hidden text-center bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-8 rounded-3xl space-y-4 shadow-sm relative overflow-hidden">
+            <div id="role-3d-container" class="absolute inset-0 opacity-20 z-0"></div>
+            <div class="relative z-10 space-y-3">
+                <h3 id="role-title" class="text-2xl font-black tracking-widest text-indigo-500">ASSIGNING ROLE...</h3>
+                <p id="role-desc" class="text-xs text-slate-500 dark:text-slate-400 font-mono">Analyzing vessel synchronization...</p>
+                <div id="role-timer" class="text-[11px] font-mono text-slate-400 pt-2">Entering sector in 5s...</div>
+            </div>
+        </div>
+
+        <div id="view-game" class="hidden space-y-3">
+            <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-3.5 rounded-2xl flex justify-between items-center text-xs font-mono">
+                <div>Tasks: <span id="txt-tasks" class="font-bold text-indigo-500">0/5</span></div>
+                <div id="txt-sabotage" class="text-success font-bold">VESSEL NOMINAL</div>
+                <button onclick="app.triggerMeeting()" class="px-2.5 py-1 bg-amber-500 text-white font-bold rounded-lg shadow-sm">MEETING</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-2 bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[11px] font-bold text-slate-400 uppercase">Workstations</span>
+                            <div id="impostor-controls" class="hidden space-x-1">
+                                <button onclick="app.sabotageLights()" class="px-2 py-1 bg-danger/10 text-danger border border-danger/20 rounded text-[10px] font-bold">Lights Out</button>
+                                <button id="btn-kill" onclick="app.executeKill()" disabled class="px-2 py-1 bg-danger text-white rounded text-[10px] font-bold opacity-50 cursor-not-allowed">KILL</button>
+                            </div>
+                        </div>
+                        <div id="task-list" class="grid grid-cols-1 gap-2"></div>
+                    </div>
+
+                    <div id="task-modal" class="hidden bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold text-indigo-500">
+                            <span id="modal-task-title">TERMINAL</span>
+                            <button onclick="app.closeTask()" class="text-slate-400 hover:text-white"></button>
+                        </div>
+                        <div id="modal-task-body"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase mb-2 block">Vessel Crew</span>
+                        <div id="game-roster" class="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar text-xs font-mono"></div>
+                    </div>
+                    <div id="game-feed" class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[10px] font-mono text-slate-400 h-16 overflow-y-auto no-scrollbar">
+                        [Log] Systems nominal.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-meeting" class="hidden space-y-3">
+            <div class="bg-white dark:bg-cardbg border border-danger/40 p-4 rounded-2xl text-center space-y-1 shadow-sm">
+                <h2 class="font-black text-danger text-base animate-pulse">EMERGENCY MEETING</h2>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">Vote on suspects or skip.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col h-48">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase mb-2">Vote Ejection</span>
+                    <div id="voting-roster" class="flex-grow overflow-y-auto no-scrollbar space-y-1.5"></div>
+                    <button onclick="app.castVote('SKIP')" class="mt-2 py-2 bg-slate-100 dark:bg-slate-800 text-xs font-bold rounded-xl">SKIP VOTE</button>
+                </div>
+                <div class="bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col h-48 justify-between">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase mb-1">Discussion</span>
+                    <div id="meeting-chat-log" class="flex-grow overflow-y-auto no-scrollbar space-y-1 text-xs font-mono text-slate-600 dark:text-slate-300 mb-2"></div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="meeting-chat-input" placeholder="Argue..." onkeydown="if(event.key==='Enter')app.sendMeetingChat()" class="flex-grow px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none">
+                        <button onclick="app.sendMeetingChat()" class="px-3 py-1.5 bg-danger text-white text-xs font-bold rounded-lg">Speak</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-gameover" class="hidden text-center bg-white dark:bg-cardbg border border-slate-200 dark:border-slate-800 p-8 rounded-3xl space-y-4 shadow-sm">
+            <h2 id="gameover-title" class="text-2xl font-black text-success">CREWMATES WIN</h2>
+            <p id="gameover-desc" class="text-xs text-slate-400 font-mono">Mission completed successfully.</p>
+            <button onclick="location.reload()" class="px-6 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl">PLAY AGAIN</button>
+        </div>
+
+    </main>
+
+    <footer class="max-w-xl mx-auto w-full text-center py-2 text-[10px] text-slate-400 font-mono">
+        Among Us: Relative Edition • P2P WebRTC Core
+    </footer>
+
+    <script>
+        class SoundFX {
+            static playBeep(freq = 440, type = 'sine', duration = 0.05) {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + duration);
+                } catch(e) {}
+            }
+        }
+
+        function triggerVibrate(pattern = 50) {
+            if ("vibrate" in navigator) { try { navigator.vibrate(pattern); } catch(e) {} }
+        }
+
+        function sendNotify(title, body) {
+            if ("Notification" in window) {
+                if (Notification.permission === "granted") new Notification(title, { body });
+                else if (Notification.permission !== "denied") Notification.requestPermission();
+            }
+        }
+
+        class AmongUsGame {
+            constructor() {
+                this.name = '';
+                this.peer = null;
+                this.peerId = null;
+                this.shortCode = '';
+                this.isHost = false;
+                this.connections = {};
+                this.players = {};
+                this.role = 'CREWMATE';
+                this.isAlive = true;
+                this.tasks = [
+                    { id: 'wires', name: 'Connect Wires', done: false },
+                    { id: 'football', name: 'Football Drill', done: false },
+                    { id: 'mobile', name: 'Secure Mobile Call', done: false },
+                    { id: 'teddy', name: 'Teddy Bear Scale', done: false },
+                    { id: 'card', name: 'Admin Card Swipe', done: false }
+                ];
+                this.completedCount = 0;
+                this.activeTask = null;
+                this.votes = {};
+                this.friends = JSON.parse(localStorage.getItem('among_friends') || '[]');
+                this.coords = { lat: 0, lng: 0 };
+            }
+
+            init() {
+                this.renderFriends();
+                if (localStorage.getItem('among_theme') === 'light') {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+
+            toggleTheme() {
+                const html = document.documentElement;
+                if (html.classList.contains('dark')) {
+                    html.classList.remove('dark');
+                    localStorage.setItem('among_theme', 'light');
+                } else {
+                    html.classList.add('dark');
+                    localStorage.setItem('among_theme', 'dark');
+                }
+            }
+
+            async requestPermissions() {
+                SoundFX.playBeep(523.25);
+                
+                // 1. GPS Location Permission
+                try {
+                    await new Promise((resolve) => {
+                        if ("geolocation" in navigator) {
+                            navigator.geolocation.getCurrentPosition(
+                                (pos) => {
+                                    this.coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                                    document.getElementById('perm-gps').innerText = 'Authorized';
+                                    document.getElementById('perm-gps').className = 'text-success font-bold';
+                                    resolve();
+                                },
+                                () => {
+                                    document.getElementById('perm-gps').innerText = 'Fallback Active';
+                                    document.getElementById('perm-gps').className = 'text-amber-500 font-bold';
+                                    resolve();
+                                },
+                                { timeout: 3000 }
+                            );
+                        } else {
+                            document.getElementById('perm-gps').innerText = 'Simulated';
+                            document.getElementById('perm-gps').className = 'text-success font-bold';
+                            resolve();
+                        }
+                    });
+                } catch(e) {}
+
+                // 2. Notification Permission
+                try {
+                    if ("Notification" in window) {
+                        const res = await Notification.requestPermission();
+                        if (res === "granted") {
+                            document.getElementById('perm-notif').innerText = 'Authorized';
+                            document.getElementById('perm-notif').className = 'text-success font-bold';
+                        } else {
+                            document.getElementById('perm-notif').innerText = 'Declined';
+                            document.getElementById('perm-notif').className = 'text-danger font-bold';
+                        }
+                    } else {
+                        document.getElementById('perm-notif').innerText = 'Not Supported';
+                        document.getElementById('perm-notif').className = 'text-slate-400 font-bold';
+                    }
+                } catch(e) {}
+
+                // 3. Bluetooth / Stream Link Permission
+                try {
+                    if (navigator.bluetooth) {
+                        // Simulated non-blocking bluetooth availability check or request
+                        document.getElementById('perm-bt').innerText = 'Ready';
+                        document.getElementById('perm-bt').className = 'text-success font-bold';
+                    } else {
+                        document.getElementById('perm-bt').innerText = 'Stream Active';
+                        document.getElementById('perm-bt').className = 'text-success font-bold';
+                    }
+                } catch(e) {}
+
+                setTimeout(() => {
+                    this.switchView('view-intro');
+                }, 800);
+            }
+
+            switchView(id) {
+                ['view-permissions', 'view-intro', 'view-lobby', 'view-room', 'view-role', 'view-game', 'view-meeting', 'view-gameover'].forEach(v => {
+                    const el = document.getElementById(v);
+                    if (v === id) { el.classList.remove('hidden'); el.classList.add('block'); }
+                    else { el.classList.add('hidden'); el.classList.remove('block'); }
+                });
+            }
+
+            submitName() {
+                const val = document.getElementById('input-name').value.trim();
+                if (!val) return;
+                this.name = val;
+                SoundFX.playBeep(659.25);
+                document.getElementById('display-name').innerText = this.name;
+                this.switchView('view-lobby');
+                this.initPeerConnection();
+            }
+
+            initPeerConnection() {
+                const suffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+                this.peer = new Peer('AU-' + suffix);
+
+                this.peer.on('open', (id) => {
+                    this.peerId = id;
+                    this.shortCode = id.replace('AU-', '');
+                    document.getElementById('header-status').innerText = 'Online (' + this.shortCode + ')';
+                    document.getElementById('header-status').className = 'text-xs px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg font-mono font-bold';
+                    this.startGPSBeaconBroadcasting();
+                });
+
+                this.peer.on('connection', (conn) => {
+                    this.setupConn(conn);
+                });
+
+                this.peer.on('error', (err) => {
+                    setTimeout(() => { if (!this.shortCode) this.initPeerConnection(); }, 1000);
+                });
+            }
+
+            startGPSBeaconBroadcasting() {
+                setInterval(() => {
+                    if (this.isHost && this.shortCode) {
+                        const beacons = JSON.parse(localStorage.getItem('among_gps_beacons') || '{}');
+                        beacons[this.shortCode] = { host: this.name, code: this.shortCode, peerId: this.peerId, time: Date.now(), coords: this.coords };
+                        localStorage.setItem('among_gps_beacons', JSON.stringify(beacons));
+                    }
+                }, 2000);
+            }
+
+            scanGPS() {
+                SoundFX.playBeep(440);
+                const list = document.getElementById('gps-list');
+                const beacons = JSON.parse(localStorage.getItem('among_gps_beacons') || '{}');
+                const now = Date.now();
+                const active = Object.values(beacons).filter(b => now - b.time < 8000);
+
+                if (active.length === 0) {
+                    list.innerHTML = '<div class="text-center py-4 text-xs text-slate-400 italic">No GPS signals active. Host a room first!</div>';
+                    return;
+                }
+
+                list.innerHTML = active.map(b => `
+                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-mono">
+                        <div><span class="font-bold text-indigo-500">${b.host}'s Vessel</span> <span class="text-[10px] text-slate-400">(${b.code})</span></div>
+                        <button onclick="document.getElementById('input-room-code').value='${b.code}'; app.joinRoom();" class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg font-bold">Connect</button>
+                    </div>
+                `).join('');
+            }
+
+            createRoom() {
+                SoundFX.playBeep(784);
+                this.isHost = true;
+                this.players[this.peerId] = { name: this.name, isAlive: true, role: 'crew', tasks: 0, coords: this.coords };
+                document.getElementById('room-code-badge').innerText = this.shortCode;
+                this.switchView('view-room');
+                document.getElementById('host-start-container').classList.remove('hidden');
+                document.getElementById('guest-waiting-text').classList.add('hidden');
+                this.addRoomChat("System", `Vessel hosted. GPS beacon active [${this.shortCode}].`);
+                this.updateRoster();
+            }
+
+            joinRoom() {
+                const code = document.getElementById('input-room-code').value.trim().toUpperCase();
+                if (code.length !== 6) {
+                    alert("Room code must be exactly 6 characters.");
+                    return;
+                }
+                SoundFX.playBeep(587.33);
+                this.isHost = false;
+                const targetPeerId = 'AU-' + code;
+                const conn = this.peer.connect(targetPeerId);
+                this.setupConn(conn);
+                this.switchView('view-room');
+                this.addRoomChat("System", `Connecting to vessel ${code}...`);
+            }
+
+            setupConn(conn) {
+                this.connections[conn.peer] = conn;
+
+                conn.on('open', () => {
+                    if (this.isHost) {
+                        conn.send({ type: 'SYNC', players: this.players });
+                    } else {
+                        conn.send({ type: 'JOIN', id: this.peerId, name: this.name, coords: this.coords });
+                    }
+                });
+
+                conn.on('data', (data) => {
+                    this.handleData(data, conn.peer);
+                });
+
+                conn.on('close', () => {
+                    delete this.connections[conn.peer];
+                    if (this.players[conn.peer]) {
+                        const n = this.players[conn.peer].name;
+                        delete this.players[conn.peer];
+                        this.updateRoster();
+                        this.addRoomChat("System", `${n} disconnected.`);
+                    }
+                });
+            }
+
+            handleData(data, senderId) {
+                switch(data.type) {
+                    case 'JOIN':
+                        if (this.isHost) {
+                            this.players[data.id] = { name: data.name, isAlive: true, role: 'crew', tasks: 0, coords: data.coords };
+                            this.broadcast({ type: 'SYNC', players: this.players });
+                            this.updateRoster();
+                            this.addRoomChat("System", `${data.name} boarded.`);
+                        }
+                        break;
+                    case 'SYNC':
+                        this.players = data.players;
+                        this.updateRoster();
+                        break;
+                    case 'CHAT':
+                        this.addRoomChat(data.name, data.text);
+                        break;
+                    case 'START':
+                        this.players = data.players;
+                        this.role = data.roles[this.peerId] || 'CREWMATE';
+                        this.triggerRoleReveal();
+                        break;
+                    case 'KILL':
+                        if (data.target === this.peerId) {
+                            this.handleDeath();
+                        } else if (this.players[data.target]) {
+                            this.players[data.target].isAlive = false;
+                            this.updateGameRoster();
+                        }
+                        break;
+                    case 'SABOTAGE':
+                        document.getElementById('txt-sabotage').innerText = "CRITICAL: LIGHTS OUT";
+                        document.getElementById('txt-sabotage').className = "text-danger font-bold animate-pulse";
+                        triggerVibrate([150, 100, 150]);
+                        break;
+                    case 'TASK_DONE':
+                        if (this.players[senderId]) {
+                            this.players[senderId].tasks = data.count;
+                            this.updateGameRoster();
+                        }
+                        break;
+                    case 'MEETING':
+                        this.startMeeting(data.caller);
+                        break;
+                    case 'VOTE':
+                        this.votes[senderId] = data.target;
+                        if (this.isHost) this.checkVotes();
+                        break;
+                    case 'MEETING_CHAT':
+                        this.addMeetingChat(data.name, data.text);
+                        break;
+                }
+            }
+
+            broadcast(data) {
+                Object.values(this.connections).forEach(c => { try { c.send(data); } catch(e) {} });
+            }
+
+            copyCode() {
+                const dummy = document.createElement('textarea');
+                dummy.value = this.shortCode;
+                document.body.appendChild(dummy);
+                dummy.select();
+                document.execCommand('copy');
+                document.body.removeChild(dummy);
+                alert("Room code copied!");
+            }
+
+            saveFriendPin() {
+                const pin = this.shortCode.slice(-3);
+                if (!this.friends.includes(pin)) {
+                    this.friends.push(pin);
+                    localStorage.setItem('among_friends', JSON.stringify(this.friends));
+                    this.renderFriends();
+                    alert(`Saved Friend 3-Pin: ${pin}`);
+                }
+            }
+
+            renderFriends() {
+                const c = document.getElementById('friends-container');
+                if (this.friends.length === 0) {
+                    c.innerHTML = '<span class="text-[10px] text-slate-400 italic">None</span>';
+                    return;
+                }
+                c.innerHTML = this.friends.map(pin => `
+                    <button onclick="document.getElementById('input-room-code').value='${pin}'" class="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 rounded font-mono text-[10px] text-indigo-500 font-bold border border-slate-200 dark:border-slate-800">#${pin}</button>
+                `).join('');
+            }
+
+            addRoomChat(sender, text) {
+                const log = document.getElementById('room-chat-log');
+                log.innerHTML += `<div><span class="font-bold text-indigo-500">[${sender}]:</span> ${text}</div>`;
+                log.scrollTop = log.scrollHeight;
+            }
+
+            sendRoomChat() {
+                const input = document.getElementById('room-chat-input');
+                const text = input.value.trim();
+                if (!text) return;
+                input.value = '';
+                this.addRoomChat(this.name, text);
+                this.broadcast({ type: 'CHAT', name: this.name, text });
+            }
+
+            updateRoster() {
+                const list = document.getElementById('roster-list');
+                const keys = Object.keys(this.players);
+                document.getElementById('roster-count').innerText = keys.length;
+                list.innerHTML = keys.map(id => `
+                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl text-xs font-mono border border-slate-200 dark:border-slate-800">
+                        <span class="font-bold">${this.players[id].name} ${id === this.peerId ? '(You)' : ''}</span>
+                        <span class="text-success">Ready</span>
+                    </div>
+                `).join('');
+            }
+
+            startGame() {
+                if (!this.isHost) return;
+                const keys = Object.keys(this.players);
+                const impIdx = Math.floor(Math.random() * keys.length);
+                const roles = {};
+                keys.forEach((id, i) => roles[id] = (i === impIdx) ? 'IMPOSTOR' : 'CREWMATE');
+                this.role = roles[this.peerId];
+                this.broadcast({ type: 'START', players: this.players, roles });
+                this.triggerRoleReveal();
+            }
+
+            triggerRoleReveal() {
+                SoundFX.playBeep(330, 'sawtooth', 0.2);
+                this.switchView('view-role');
+                const t = document.getElementById('role-title');
+                const d = document.getElementById('role-desc');
+                if (this.role === 'IMPOSTOR') {
+                    t.innerText = "IMPOSTOR";
+                    t.className = "text-2xl font-black tracking-widest text-danger";
+                    d.innerText = "Eliminate crewmates and sabotage lights.";
+                } else {
+                    t.innerText = "CREWMATE";
+                    t.className = "text-2xl font-black tracking-widest text-indigo-500";
+                    d.innerText = "Complete your engineering tasks.";
+                }
+
+                let sec = 5;
+                const interval = setInterval(() => {
+                    sec--;
+                    document.getElementById('role-timer').innerText = `Entering sector in ${sec}s...`;
+                    if (sec <= 0) {
+                        clearInterval(interval);
+                        this.enterGame();
+                    }
+                }, 1000);
+            }
+
+            enterGame() {
+                this.switchView('view-game');
+                if (this.role === 'IMPOSTOR') {
+                    document.getElementById('impostor-controls').classList.remove('hidden');
+                }
+                this.renderTasks();
+                this.updateGameRoster();
+            }
+
+            renderTasks() {
+                const container = document.getElementById('task-list');
+                if (this.role === 'IMPOSTOR') {
+                    container.innerHTML = `<div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-xs font-mono text-slate-400 italic">Impostor mode active: Use sabotage & kill buttons.</div>`;
+                    return;
+                }
+                container.innerHTML = this.tasks.map(tsk => `
+                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                        <div>
+                            <div class="font-bold">${tsk.name}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">${tsk.done ? 'COMPLETED' : 'PENDING'}</div>
+                        </div>
+                        <button ${tsk.done ? 'disabled' : ''} onclick="app.openTaskModal('${tsk.id}')" class="px-3 py-1.5 ${tsk.done ? 'bg-slate-200 dark:bg-slate-800 text-slate-400' : 'bg-indigo-600 text-white font-bold'} rounded-lg text-xs">
+                            ${tsk.done ? 'Done' : 'Perform'}
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            openTaskModal(id) {
+                SoundFX.playBeep(500);
+                this.activeTask = id;
+                document.getElementById('task-modal').classList.remove('hidden');
+                const title = document.getElementById('modal-task-title');
+                const body = document.getElementById('modal-task-body');
+
+                if (id === 'wires') {
+                    title.innerText = "CONNECT WIRES";
+                    body.innerHTML = `<button onclick="app.completeTask('wires')" class="w-full py-2 bg-slate-200 dark:bg-slate-800 rounded text-xs font-mono font-bold text-indigo-500">Connect Circuit A-A & B-B</button>`;
+                } else if (id === 'football') {
+                    title.innerText = "FOOTBALL DRILL";
+                    body.innerHTML = `<button onclick="app.completeTask('football')" class="w-full py-2 bg-slate-200 dark:bg-slate-800 rounded text-xs font-mono font-bold text-success">Execute Juggle & Shoot</button>`;
+                } else if (id === 'mobile') {
+                    title.innerText = "SECURE MOBILE CALL";
+                    body.innerHTML = `<button onclick="app.completeTask('mobile')" class="w-full py-2 bg-slate-200 dark:bg-slate-800 rounded text-xs font-mono font-bold text-amber-500">Dial Bridge Extension #7734</button>`;
+                } else if (id === 'teddy') {
+                    title.innerText = "TEDDY BEAR SCALE";
+                    body.innerHTML = `<button onclick="app.completeTask('teddy')" class="w-full py-2 bg-slate-200 dark:bg-slate-800 rounded text-xs font-mono font-bold text-purple-400">Calibrate Sizing (Big to Small)</button>`;
+                } else if (id === 'card') {
+                    title.innerText = "ADMIN CARD SWIPE";
+                    body.innerHTML = `<button onclick="app.completeTask('card')" class="w-full py-2 bg-slate-200 dark:bg-slate-800 rounded text-xs font-mono font-bold text-emerald-400">Swipe Badge Sensor</button>`;
+                }
+            }
+
+            completeTask(id) {
+                const t = this.tasks.find(x => x.id === id);
+                if (t && !t.done) {
+                    t.done = true;
+                    this.completedCount++;
+                    SoundFX.playBeep(880, 'triangle', 0.15);
+                    triggerVibrate(50);
+                    document.getElementById('task-modal').classList.add('hidden');
+                    this.renderTasks();
+                    document.getElementById('txt-tasks').innerText = `${this.completedCount}/5`;
+                    this.broadcast({ type: 'TASK_DONE', count: this.completedCount });
+                    if (this.completedCount >= 5) {
+                        this.triggerGameOver("CREWMATES WIN", "All tasks completed successfully.");
+                    }
+                }
+            }
+
+            sabotageLights() {
+                if (this.role !== 'IMPOSTOR') return;
+                SoundFX.playBeep(200, 'sawtooth', 0.3);
+                this.broadcast({ type: 'SABOTAGE' });
+                this.addGameLog("You sabotaged vessel lighting!");
+            }
+
+            executeKill() {
+                if (this.role !== 'IMPOSTOR' || !this.isAlive) return;
+                const targets = Object.keys(this.players).filter(id => id !== this.peerId && this.players[id].isAlive);
+                if (targets.length === 0) return;
+                const targetId = targets[0];
+                SoundFX.playBeep(120, 'sawtooth', 0.4);
+                triggerVibrate(300);
+                this.broadcast({ type: 'KILL', target: targetId });
+                if (this.players[targetId]) this.players[targetId].isAlive = false;
+                this.updateGameRoster();
+                this.addGameLog(`Eliminated ${this.players[targetId].name}`);
+            }
+
+            handleDeath() {
+                this.isAlive = false;
+                SoundFX.playBeep(90, 'sawtooth', 0.5);
+                triggerVibrate([400, 200, 400]);
+                sendNotify("Among Us", "You have been eliminated!");
+                this.addGameLog("You have been eliminated!");
+            }
+
+            updateGameRoster() {
+                const roster = document.getElementById('game-roster');
+                roster.innerHTML = Object.keys(this.players).map(id => {
+                    const p = this.players[id];
+                    return `<div class="flex justify-between items-center py-1"><span>${p.name}</span><span class="${p.isAlive ? 'text-success' : 'text-danger'}">${p.isAlive ? 'Alive' : 'Dead'}</span></div>`;
+                }).join('');
+
+                if (this.role === 'IMPOSTOR') {
+                    const targets = Object.keys(this.players).filter(id => id !== this.peerId && this.players[id].isAlive);
+                    const btn = document.getElementById('btn-kill');
+                    if (targets.length > 0) {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        btn.disabled = true;
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                }
+            }
+
+            addGameLog(text) {
+                const f = document.getElementById('game-feed');
+                f.innerHTML += `<div>[Log] ${text}</div>`;
+                f.scrollTop = f.scrollHeight;
+            }
+
+            triggerMeeting() {
+                SoundFX.playBeep(500);
+                this.broadcast({ type: 'MEETING', caller: this.name });
+                this.startMeeting(this.name);
+            }
+
+            startMeeting(caller) {
+                this.switchView('view-meeting');
+                this.addMeetingChat("System", `Emergency meeting called by ${caller}.`);
+                const roster = document.getElementById('voting-roster');
+                roster.innerHTML = Object.keys(this.players).map(id => {
+                    const p = this.players[id];
+                    if (!p.isAlive) return '';
+                    return `<button onclick="app.castVote('${id}')" class="w-full text-left px-3 py-2 bg-slate-50 dark:bg-slate-900 rounded-xl text-xs font-mono mb-1 flex justify-between"><span>${p.name}</span><span class="text-indigo-500 font-bold">Vote</span></button>`;
+                }).join('');
+            }
+
+            castVote(target) {
+                SoundFX.playBeep(400);
+                this.votes[this.peerId] = target;
+                this.broadcast({ type: 'VOTE', target });
+                this.addMeetingChat("System", "Vote registered.");
+                if (this.isHost) this.checkVotes();
+            }
+
+            checkVotes() {
+                const alive = Object.keys(this.players).filter(id => this.players[id].isAlive);
+                if (Object.keys(this.votes).length >= alive.length) {
+                    const counts = {};
+                    Object.values(this.votes).forEach(v => counts[v] = (counts[v] || 0) + 1);
+                    let maxT = 'SKIP';
+                    let maxV = 0;
+                    Object.keys(counts).forEach(t => { if (counts[t] > maxV) { maxV = counts[t]; maxT = t; } });
+                    this.votes = {};
+
+                    if (maxT === 'SKIP' || !this.players[maxT]) {
+                        this.addMeetingChat("System", "Voting skipped. No one ejected.");
+                    } else {
+                        const deadName = this.players[maxT].name;
+                        const wasImp = this.players[maxT].role === 'IMPOSTOR';
+                        this.players[maxT].isAlive = false;
+                        this.addMeetingChat("System", `${deadName} was ejected. They were an ${wasImp ? 'IMPOSTOR' : 'CREWMATE'}.`);
+                        if (wasImp) {
+                            setTimeout(() => this.triggerGameOver("CREWMATES WIN", "The impostor was ejected."), 2000);
+                            return;
+                        }
+                    }
+
+                    setTimeout(() => {
+                        this.switchView('view-game');
+                        this.updateGameRoster();
+                    }, 2500);
+                }
+            }
+
+            addMeetingChat(sender, text) {
+                const log = document.getElementById('meeting-chat-log');
+                log.innerHTML += `<div><span class="font-bold text-danger">[${sender}]:</span> ${text}</div>`;
+                log.scrollTop = log.scrollHeight;
+            }
+
+            sendMeetingChat() {
+                const input = document.getElementById('meeting-chat-input');
+                const text = input.value.trim();
+                if (!text) return;
+                input.value = '';
+                this.addMeetingChat(this.name, text);
+                this.broadcast({ type: 'MEETING_CHAT', name: this.name, text });
+            }
+
+            triggerGameOver(title, desc) {
+                this.switchView('view-gameover');
+                document.getElementById('gameover-title').innerText = title;
+                document.getElementById('gameover-desc').innerText = desc;
+            }
+        }
+
+        const app = new AmongUsGame();
+        window.onload = () => app.init();
+    </script>
+</body>
+</html>
